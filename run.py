@@ -1,79 +1,81 @@
-#  run 
-import sqlite3
+# run
+import psycopg2
 import sys
 
 #  Write the headers for a series
 
-def seriesHeaders(c, runId, seriesList):
-	for series in seriesList:
-		series.writeHeader(c, runId)
+def seriesHeaders(cursor, runId, seriesList):
+    for series in seriesList:
+        series.writeHeader(cursor, runId)
+
 
 #  Write the input values into the database
-		
-def inputValues(c, inputList, step):
-	for inputThing in inputList:
-		setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(?, ?, ?)'
-		c.execute(setPoint, (inputThing.getId(), step, inputThing.getValue(step)))
+
+def inputValues(cursor, inputList, step):
+    for inputThing in inputList:
+        setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(%s, %s, %s)'
+        cursor.execute(setPoint, (inputThing.getId(), step, inputThing.getValue(step)))
+
 
 # write the load values into the database
 
-def loadValues(c, loadList, step, inputPoint):
-	for load in loadList:
-		setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(?, ?, ?)'
-		c.execute(setPoint, (load.getId(), step, load.getValue(inputPoint)))
-		
+def loadValues(cursor, loadList, step, inputPoint):
+    for load in loadList:
+        setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(%s, %s, %s)'
+        cursor.execute(setPoint, (load.getId(), step, load.getValue(inputPoint)))
+
+
 # write the supplier values into the database
 
-def supplierValues(c, supplierList, step):
-	for supplier in supplierList:
-		setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(?, ?, ?)'
-		c.execute(setPoint, (supplier.price.getId(), step, supplier.price.getValue()))
-		c.execute(setPoint, (supplier.supply.getId(), step, supplier.supply.getValue()))
-		
+def supplierValues(cursor, supplierList, step):
+    for supplier in supplierList:
+        setPoint = 'INSERT INTO point(seriesId, sequence, value) VALUES(%s, %s, %s)'
+        cursor.execute(setPoint, (supplier.price.getId(), step, supplier.price.getValue()))
+        cursor.execute(setPoint, (supplier.supply.getId(), step, supplier.supply.getValue()))
+
+
 # create an input data structure for a given sequence point
 
 def makePoint(inputList, step):
-	return {inputThing.getSymbol(): inputThing.getValue(step) for inputThing in inputList}
+    return {inputThing.getSymbol(): inputThing.getValue(step) for inputThing in inputList}
+
 
 # run the model, fill in the database
 
 def run(inputList, loadList, supplierList, market):
-	conn = sqlite3.connect('electricalframework.db')
+    connect = psycopg2.connect('dbname=market')
+    cursor = connect.cursor()
 
-	c = conn.cursor()
+    if len(sys.argv) > 2:
+        name = sys.argv[1]
+        stepCount = int(sys.argv[2])
+        setname = 'INSERT INTO run (name) VALUES(%s) RETURNING id;'
+        cursor.execute(setname, (name,))
+        (runId,) = cursor.fetchone()
 
-	if len(sys.argv) > 2:
-		name = sys.argv[1]
-		stepCount = int(sys.argv[2])
-		setname = 'INSERT INTO run (name) VALUES(?);'
-		c.execute(setname, (name,))
+        seriesHeaders(cursor, runId, inputList)
+        seriesHeaders(cursor, runId, loadList)
+        for supplier in supplierList:
+            supplier.price.writeHeader(cursor, runId)
+            supplier.supply.writeHeader(cursor, runId)
 
-		c.execute('SELECT last_insert_rowid() FROM run')
-		(runId,) = c.fetchone()
+        connect.commit()
 
-		seriesHeaders(c, runId, inputList)
-		seriesHeaders(c, runId, loadList)
-		for supplier in supplierList:
-			supplier.price.writeHeader(c, runId)
-			supplier.supply.writeHeader(c, runId)
+        for step in range(stepCount):
+            inputValues(cursor, inputList, step)
+            inputPoint = makePoint(inputList, step)
+            loadValues(cursor, loadList, step, inputPoint)
 
-		conn.commit()
+            totalLoad = 0
+            for load in loadList:
+                totalLoad += load.getValue(inputPoint)
 
-		for step in range(stepCount):
-			inputValues(c, inputList, step)
-			inputPoint = makePoint(inputList, step)
-			loadValues(c, loadList, step, inputPoint)
+            market.auction(totalLoad, supplierList)
 
-			totalLoad = 0
-			for load in loadList:
-				totalLoad += load.getValue(inputPoint)
+            supplierValues(cursor, supplierList, step)
 
-			market.auction(totalLoad, supplierList)
- 		
-			supplierValues(c, supplierList, step)
-
-			conn.commit()
-	else:
-		print ('Usage: ./runScript.py name stepCount')
+            connect.commit()
+    else:
+        print ('Usage: ./runScript.py name stepCount')
 
 

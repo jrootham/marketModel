@@ -1,15 +1,13 @@
 #!/usr/bin/python
 
-import sqlite3
+import psycopg2
 
-conn = sqlite3.connect('electricalframework.db')
+connect = psycopg2.connect('dbname=market')
+cursor = connect.cursor()
 
-c = conn.cursor()
+cursor.execute('SELECT * FROM run')
+print cursor.fetchone()
 
-c.execute('SELECT * FROM run')
-print c.fetchone()
-
-conn.commit
-
-conn.close
+cursor.close
+connect.close
 

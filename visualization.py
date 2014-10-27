@@ -5,7 +5,7 @@ from pandas import DataFrame, Series
 import matplotlib.pyplot as plt
 import sys
 
-#prepare system arguments
+# prepare system arguments
 seriesId = sys.argv[1]
 
 # get user to select series for display
@@ -21,8 +21,7 @@ rows = cursor.fetchall()
 
 df = DataFrame(rows, columns=zip(*cursor.description)[0])
 
-
-plt.plot( df.value, df.sequence)
+plt.plot(df.value, df.sequence)
 plt.xlabel('sequence')
 plt.ylabel('value')
 plt.savefig('framework.png', fmt='png', dpi=100)
