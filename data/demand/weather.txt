@@ -1,0 +1,16 @@
+Thunder Bay
+Sudbury
+Haliburton
+Wiarton
+Peterborough
+Toronto
+St Catherines
+Kitchener
+Ottawa
+Chatham-Kent
+
+GET climate.weather.gc.ca/climateData/bulkdata_e.html?
+format=csv&stationID=50637&Year=2014&Month=3&Day=1&timeframe=1&submit=Download+Data HTTP/1.1
+
+Northwest,Northeast,Ottawa,East,Toronto,Essa,Bruce,Southwest,Niagara,West
+

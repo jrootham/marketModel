@@ -1,4 +1,4 @@
-import sqlite3
+import psycopg2
 import numpy as np
 import pandas
 from pandas import DataFrame, Series
@@ -12,8 +12,9 @@ seriesId = sys.argv[1]
 #getRunID = input('please enter seriesID to display series/n')
 
 
-con = sqlite3.connect('electricalframework.db')
-cursor = con.execute('select * from point WHERE seriesId=%s' % seriesId)
+connect = psycopg2.connect('dbname=market')
+cursor = connect.cursor()
+cursor.execute('select * from point WHERE seriesId=%s' % seriesId)
 rows = cursor.fetchall()
 
 #test print
